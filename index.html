@@ -11,6 +11,7 @@
 
         void main() {
             gl_Position = vPosition;
+            gl_PointSize = 10.0;
             fColor = vColor;			// Pass point color to fragment shader
         }
     </script>
@@ -41,6 +42,7 @@
 
     <canvas id="webgl" width="400" height="400" style="border: 1px solid black;">
         Please use a browser that supports the "canvas" tag.
+        // where you will be doing your graphics drawing
     </canvas>
 
     <form id="fileupload" enctype="multipart/form-data">
