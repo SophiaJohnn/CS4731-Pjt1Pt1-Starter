@@ -9,8 +9,10 @@
         attribute vec4 vColor;
         varying vec4 fColor;
 
+        uniform mat4 matrixDrawn;
+
         void main() {
-            gl_Position = vPosition;
+            gl_Position = matrixDrawn * vPosition;
             gl_PointSize = 10.0;
             fColor = vColor;			// Pass point color to fragment shader
         }
@@ -22,7 +24,7 @@
 
         void main()
         {
-            gl_FragColor = fColor;
+            gl_FragColor = fColor; // IF YOU CHANGE COLOR YOU CAN GET EXTRA POINTS
         }
     </script>
 
