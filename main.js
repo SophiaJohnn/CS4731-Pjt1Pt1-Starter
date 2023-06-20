@@ -5,6 +5,13 @@ let matrixDrawn;
 let matrixDrawnLocation;
 let ctMatrix;
 let modelMatrix;
+let dragX = null;
+let dragY = null;
+let startingPoint = 0;
+let theta = 0;
+let sf = 1;
+let finalRendition;
+let view = [];
 
 function main()
 {
@@ -33,14 +40,13 @@ function main()
     input.addEventListener("input", fileUpload)
 
 }
-
 function processFile(f) {
     const defaultColor = 0x000000; // makes the default color black (change it to a color picker or rainbow get extra credit)
     // convert the svg string to XML
     const parser = new DOMParser();
     const xmlDoc = parser.parseFromString(f.target.result, 'image/svg+xml');
     // Compute the viewbox
-    const view = xmlGetViewbox(xmlDoc, 70);
+    const view = xmlGetViewbox(xmlDoc, [0,0,1,1]);
     // Get the lines & colors
     let [lines, colors] = xmlGetLines(xmlDoc, defaultColor);
 
@@ -50,8 +56,6 @@ function processFile(f) {
         points.push(lines[i][0]);
         points.push(lines[i][1]);
     }
-
-    console.log("hello");
 
     //Fixing the sizing issue
     if(view[2] > view[3]) {
@@ -74,27 +78,89 @@ function processFile(f) {
 
     ctMatrix = mult(scalem(1, -1, 1), matrixDrawn);
 
-    console.log(view);
-
-
     matrixDrawnLocation = gl.getUniformLocation(program, 'matrixDrawn');
     gl.uniformMatrix4fv(matrixDrawnLocation, false, flatten(matrixDrawn));
 
-    // var ctMatrixLoc = gl.getUniformLocation(program, "modelMatrix");
-    //
-    // modelMatrix = mat4();
-    //
-    // modelMatrix = mult(modelMatrix, scalem(1,-1,1));
-    //
-    // gl.uniformMatrix4fv(ctMatrixLoc, false, flatten(modelMatrix));
+    // For dragging image
+    canvas.addEventListener("mousedown", function (e){
+        startingPoint = {x: e.clientX, y: e.clientY};
+    });
+    canvas.addEventListener ("mousemove", function(e) {
+        if(e.buttons === 1) {
+            const current = {x: e.clientX, y: e.clientY};
+            dragX = ((current.x-startingPoint.x) * view[2])/canvas.width;
+            dragY = ((current.y-startingPoint.y) * view[3])/canvas.height;
+            // clears buffer/canvas
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            gl.clearColor(255, 255, 255, 255);
+            render(points, colors);
+        }
+    })
+    canvas.addEventListener("onwheel" in document ? "wheel" : "mousewheel", function(evt) {
+        console.log("hi");
+        if( evt.deltaY > 0 ){
+            if(theta===360){
+                theta = 0;
+            } else {
+                theta += 1;
+            }
+        } else {
+            if(theta===-360){
+                theta = 0;
+            }else{
+                theta -= 1;
+            }
+        }
+        if(evt.deltaY > 0 && sf<10){
+            sf+=0.1;
+        }else if(evt.deltaY < 0 && sf>0.1){
+            sf-=0.1;
+        }
+        render(points, colors);
+    });
+    //Resets it back to the original picture
+    window.onkeypress = function(event) {
+        var key = event.key;
+        switch(key) {
+            case 'r':
+                gl.clearColor(255, 255, 255, 255);
+                gl.clear(gl.COLOR_BUFFER_BIT);
+                console.log(points);
+                console.log(colors);
+                dragX=0;
+                dragY=0;
+                render(points, colors);
+        }
+    }
 
-    // Create an empty buffer object to store the vertex buffer
+    // console.log(points, colors);
+    render(points, colors);
+
+}
+function render(points, colors){
+
+    var translateMatrix = translate(dragX, dragY, 0);
+
+    var rotateMatrix = rotate(theta, [0, 0, 1]);
+    var scaleMatrix = scalem(sf, sf, 1);
+    var centerTMatrix = translate(view[2]/2 + view[0], view[3]/2 + view[1], 0);
+    var backTMatrix = translate(-(view[2]/2+view[0]), -(view[3]/2+view[1]), 0);
+
+    finalRendition = mult(centerTMatrix, scaleMatrix);
+    // finalRendition = mult(finalRendition, rotateMatrix);
+    // finalRendition = mult(finalRendition, translateMatrix);
+    // finalRendition = mult(finalRendition, backTMatrix);
+
+    var modelMatrix = gl.getUniformLocation(program, "modelMatrix");
+    gl.uniformMatrix4fv(modelMatrix, false, flatten(finalRendition));
+
+
     var vertex_buffer = gl.createBuffer();
 
     //Bind appropriate array buffer to it
     gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
     // Pass the vertex data to the buffer
-    gl.bufferData(gl.ARRAY_BUFFER, flatten(points), gl.STATIC_DRAW);    // BEFORE I USED new Float32Array(points)
+    gl.bufferData(gl.ARRAY_BUFFER, flatten(points), gl.STATIC_DRAW);
     // Unbind the buffer
     gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
@@ -122,7 +188,6 @@ function processFile(f) {
     gl.clearColor(255, 255, 255, 255);
     // Draw the triangle
     gl.drawArrays(gl.LINES, 0, points.length/2);
-
 }
 
 function fileUpload(evt) {

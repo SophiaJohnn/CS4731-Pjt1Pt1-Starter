@@ -10,9 +10,11 @@
         varying vec4 fColor;
 
         uniform mat4 matrixDrawn;
+        uniform mat4 modelMatrix;
+
 
         void main() {
-            gl_Position = matrixDrawn * vPosition;
+            gl_Position = matrixDrawn * modelMatrix * vPosition;
             gl_PointSize = 10.0;
             fColor = vColor;			// Pass point color to fragment shader
         }
