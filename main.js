@@ -46,7 +46,7 @@ function processFile(f) {
     const parser = new DOMParser();
     const xmlDoc = parser.parseFromString(f.target.result, 'image/svg+xml');
     // Compute the viewbox
-    const view = xmlGetViewbox(xmlDoc, [0,0,1,1]);
+    view = xmlGetViewbox(xmlDoc, [0,0,1,1]);
     // Get the lines & colors
     let [lines, colors] = xmlGetLines(xmlDoc, defaultColor);
 
@@ -98,24 +98,27 @@ function processFile(f) {
     })
     canvas.addEventListener("onwheel" in document ? "wheel" : "mousewheel", function(evt) {
         console.log("hi");
-        if( evt.deltaY > 0 ){
-            if(theta===360){
+        if (evt.deltaY > 0) {
+            if (theta === 360) {
                 theta = 0;
             } else {
                 theta += 1;
             }
         } else {
-            if(theta===-360){
+            if (theta === -360) {
                 theta = 0;
-            }else{
+            } else {
                 theta -= 1;
             }
         }
-        if(evt.deltaY > 0 && sf<10){
-            sf+=0.1;
-        }else if(evt.deltaY < 0 && sf>0.1){
-            sf-=0.1;
+        if (evt.shiftKey === true) {
+        //SCALE - how do i check if shift key is pressed
+            if (evt.deltaY > 0 && sf < 10) {
+                sf += 0.1;
+            } else if (evt.deltaY < 0 && sf > 0.1) {
+            sf -= 0.1;
         }
+    }
         render(points, colors);
     });
     //Resets it back to the original picture
@@ -129,27 +132,32 @@ function processFile(f) {
                 console.log(colors);
                 dragX=0;
                 dragY=0;
+                theta = 0;
+                sf=1;
                 render(points, colors);
         }
+
     }
 
     // console.log(points, colors);
+
     render(points, colors);
 
 }
 function render(points, colors){
-
+    var tempMatrix = mat4();
     var translateMatrix = translate(dragX, dragY, 0);
 
     var rotateMatrix = rotate(theta, [0, 0, 1]);
     var scaleMatrix = scalem(sf, sf, 1);
     var centerTMatrix = translate(view[2]/2 + view[0], view[3]/2 + view[1], 0);
+    console.log(view);
     var backTMatrix = translate(-(view[2]/2+view[0]), -(view[3]/2+view[1]), 0);
 
     finalRendition = mult(centerTMatrix, scaleMatrix);
-    // finalRendition = mult(finalRendition, rotateMatrix);
-    // finalRendition = mult(finalRendition, translateMatrix);
-    // finalRendition = mult(finalRendition, backTMatrix);
+    finalRendition = mult(finalRendition, rotateMatrix);
+    finalRendition = mult(finalRendition, translateMatrix);
+    finalRendition = mult(finalRendition, backTMatrix);
 
     var modelMatrix = gl.getUniformLocation(program, "modelMatrix");
     gl.uniformMatrix4fv(modelMatrix, false, flatten(finalRendition));
