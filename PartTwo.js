@@ -1,7 +1,7 @@
 var canvas;
 var gl;
 
-var numTimesToSubdivide = 5;
+var numTimesToSubdivide = 0;
 
 var index = 0;
 
@@ -43,6 +43,24 @@ var modelViewMatrixLoc, projectionMatrixLoc;
 var eye;
 var at = vec3(0.0, 0.0, 0.0);
 var up = vec3(0.0, 1.0, 0.0);
+
+// Control vertices for line
+let lineControlPoints = [
+    vec4(-1, -1, 0.0, 1.0),
+    vec4(-1.5, -1.5, 0.0, 1.0),
+    vec4(-1.5, 1.5, 0.0, 1.0),
+    vec4(1.5, 1.5, 0.0, 1.0),
+    vec4(1.5, -1.5, 0.0, 1.0),
+    vec4(1, -1, 0.0, 1.0),
+    // vec4(1, 1, 0.0, 1.0),
+    vec4(-1, -2, 0.0, 1.0)
+
+];
+let isSphere;
+Boolean (isSphere); // initialized as false
+
+// Keyboard control info
+let lineSubdivisions = 7;
 
 function triangle(a, b, c) {
 
@@ -199,6 +217,50 @@ function render(program, diffuseProduct, specularProduct, ambientProduct) {
     gl.uniformMatrix4fv(modelViewMatrixLoc, false, flatten(modelViewMatrix) );
     gl.uniformMatrix4fv(projectionMatrixLoc, false, flatten(projectionMatrix) );
 
-    for( var i=0; i<index; i+=3)
-        gl.drawArrays( gl.TRIANGLES, i, 3 );
+    // for( var i=0; i<index; i+=3)
+    //     gl.drawArrays( gl.TRIANGLES, i, 3 );
+
+    var linePoints = chaikin(lineControlPoints, lineSubdivisions);
+
+    var otherBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, vBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, flatten(linePoints), gl.STATIC_DRAW);
+
+    var otherPosition = gl.getAttribLocation( program, "vPosition");
+    gl.vertexAttribPointer(vPosition, 4, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(vPosition);
+
+    // Draw line (loop to close the end)
+    gl.drawArrays(gl.LINE_LOOP, 0, linePoints.length);
+}
+
+// chaikin() recursively subdivides a line using Chaikin's corner cutting algorithm
+function chaikin(vertices, iterations) {
+    // Recursive end condition
+    if (iterations === 0) {
+        return vertices;
+    }
+
+    // New vertices after corner-cutting
+    var newVertices = [];
+
+    // Constant corner cutting ratio of 1/4
+    var ratio = 0.25;
+
+    for (let i = 0; i < vertices.length - 1; i++) {
+        // Get starting and ending vertices of line segment to cut
+        var v0 = vertices[i];
+        var v1 = vertices[i + 1];
+
+        // Cut vertices and add to list
+        // Calculate first new point
+        var p0 = mix(v0, v1, ratio);
+
+        // Calculate second new point
+        var p1 = mix(v0, v1, (1.0 - ratio));
+        newVertices.push(p0, p1);
+    }
+
+    // Recursively call to subdivide
+    return chaikin(newVertices, iterations - 1);
 }
