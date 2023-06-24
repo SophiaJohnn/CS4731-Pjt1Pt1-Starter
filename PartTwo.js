@@ -8,14 +8,13 @@ var index = 0;
 var pointsArray = [];
 var normalsArray = [];
 
-
 var near = -10;
 var far = 10;
 
-var left = -3.0;
-var right = 3.0;
-var ytop = 3.0;
-var bottom = -3.0;
+var left = -5.0;
+var right = 5.0;
+var ytop = 5.0;
+var bottom = -5.0;
 
 // All the vertices in the cube
 var va = vec4( -0.5, -0.5,  0.5, 1.0 );
@@ -44,42 +43,47 @@ var eye;
 var at = vec3(0.0, 0.0, 0.0);
 var up = vec3(0.0, 1.0, 0.0);
 
+var program;
+
 // Control vertices for line
 let lineControlPoints = [
     vec4(-1, -1, 0.0, 1.0),
     vec4(-1.5, -1.5, 0.0, 1.0),
     vec4(-1.5, 1.5, 0.0, 1.0),
-    vec4(1.5, 1.5, 0.0, 1.0),
-    vec4(1.5, -1.5, 0.0, 1.0),
+    vec4(5, 1.5, 0.0, 1.0),
+    vec4(5, -1.5, 0.0, 1.0),
     vec4(1, -1, 0.0, 1.0),
-    // vec4(1, 1, 0.0, 1.0),
     vec4(-1, -2, 0.0, 1.0)
-
 ];
-let isSphere;
-Boolean (isSphere); // initialized as false
+var dragX = 0;
+var dragY = 0;
+var dragZ = 0;
 
 // Keyboard control info
-let lineSubdivisions = 7;
+let lineSubdivisions = 0;
+
+let animation = false;
+
+let linePoints = [];
+let i = 0;
+let increment = 0.5;
+let FieldOfView =  60;
+let Aspect = 1;
+let NearPlane = 1;
+let FarPlane = 2000;
 
 function triangle(a, b, c) {
-
-
-
     pointsArray.push(a);
     pointsArray.push(b);
     pointsArray.push(c);
 
     // normals are vectors
-
     normalsArray.push(a[0],a[1], a[2], 0.0);
     normalsArray.push(b[0],b[1], b[2], 0.0);
     normalsArray.push(c[0],c[1], c[2], 0.0);
 
     index += 3;
-
 }
-
 
 function divideTriangle(a, b, c, count) {
     if ( count > 0 ) {
@@ -102,7 +106,6 @@ function divideTriangle(a, b, c, count) {
     }
 }
 
-
 function cube(a, b, c, d, e, f, g, h, n) {
     divideTriangle(b, c, a, n);
     divideTriangle(c, a, d, n);
@@ -116,7 +119,6 @@ function cube(a, b, c, d, e, f, g, h, n) {
     divideTriangle(c, f, g, n);
     divideTriangle(a, d, e, n);
     divideTriangle(d, e, h, n);
-
 }
 
 window.onload = function init() {
@@ -131,10 +133,9 @@ window.onload = function init() {
 
     gl.enable(gl.DEPTH_TEST);
 
-    //
     //  Load shaders and initialize attribute buffers
-    //
-    var program = initShaders( gl, "vertex-shader", "fragment-shader" );
+
+    program = initShaders( gl, "vertex-shader", "fragment-shader" );
     gl.useProgram( program );
 
     var diffuseProduct = mult(lightDiffuse, materialDiffuse);
@@ -157,7 +158,7 @@ window.onload = function init() {
                     pointsArray = [];
                     normalsArray = [];
                     cube(va, vb, vc, vd, ve, vf, vg, vh, numTimesToSubdivide);
-                    render(program, diffuseProduct, specularProduct, ambientProduct);
+                    render(diffuseProduct, specularProduct, ambientProduct);
                     break;
                 }
             case 'E':
@@ -166,17 +167,88 @@ window.onload = function init() {
                     pointsArray = [];
                     normalsArray = [];
                     cube(va, vb, vc, vd, ve, vf, vg, vh, numTimesToSubdivide);
-                    render(program, diffuseProduct, specularProduct, ambientProduct);
+                    render(diffuseProduct, specularProduct, ambientProduct);
+                    break;
+                }
+            case 'A':
+                animation = !animation;
+                if(animation === true)
+                {
+                    animate();
+                }
+                break;
+            case 'I':
+                if(lineSubdivisions === 0)
+                {
+                    break;
+                }
+                if(lineSubdivisions>0)
+                {
+                    lineSubdivisions -= 1;
+                    render(diffuseProduct, specularProduct, ambientProduct);
+
+                    break;
+                }
+            case 'J':
+                if(lineSubdivisions<7)
+                {
+                    lineSubdivisions += 1;
+                    render(diffuseProduct, specularProduct, ambientProduct);
+
                     break;
                 }
         }
     }
 
-    render(program, diffuseProduct, specularProduct, ambientProduct);
+    render(diffuseProduct, specularProduct, ambientProduct);
+}
+
+function animate()
+{
+    if(linePoints.length > i) {
+        let drag = mix(linePoints[i], linePoints[i+1], increment);
+        dragX = drag[0];
+        dragY = drag[1];
+        dragZ = drag[2];
+        increment+=0.1
+        drawSphere(dragX, dragY, 0);
+        if(animation===true)
+        {
+            requestAnimationFrame(animate);
+        }
+    }
+
+}
+
+function render(diffuseProduct, specularProduct, ambientProduct) {
+    modelViewMatrixLoc = gl.getUniformLocation( program, "modelViewMatrix" );
+    projectionMatrixLoc = gl.getUniformLocation( program, "projectionMatrix" );
+
+    gl.uniform4fv(gl.getUniformLocation(program, "diffuseProduct"), flatten(diffuseProduct));
+    gl.uniform4fv(gl.getUniformLocation(program, "specularProduct"), flatten(specularProduct));
+    gl.uniform4fv(gl.getUniformLocation(program, "ambientProduct"), flatten(ambientProduct));
+    gl.uniform4fv(gl.getUniformLocation(program, "lightPosition"), flatten(lightPosition));
+    gl.uniform1f(gl.getUniformLocation(program, "shininess"), materialShininess);
+
+    gl.clear( gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+    eye = vec3(4, 2, 10);
+
+    modelViewMatrix = lookAt(eye, at , up);
+    projectionMatrix = perspective(FieldOfView, Aspect, NearPlane, FarPlane);
+
+
+    gl.uniformMatrix4fv(modelViewMatrixLoc, false, flatten(modelViewMatrix) );
+    gl.uniformMatrix4fv(projectionMatrixLoc, false, flatten(projectionMatrix) );
+
+    drawSphere(dragX,dragY,dragZ);
 }
 
 
-function render(program, diffuseProduct, specularProduct, ambientProduct) {
+function drawSphere(x, y, z){
+    const dTranslateMatrix = translate(x, y, z);
+    const modelMatrix = gl.getUniformLocation(program, "modelMatrix");
+    gl.uniformMatrix4fv(modelMatrix, false, flatten(dTranslateMatrix));
 
     var vBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, vBuffer);
@@ -195,44 +267,30 @@ function render(program, diffuseProduct, specularProduct, ambientProduct) {
     gl.vertexAttribPointer(vNormalPosition, 4, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(vNormalPosition);
 
-    modelViewMatrixLoc = gl.getUniformLocation( program, "modelViewMatrix" );
-    projectionMatrixLoc = gl.getUniformLocation( program, "projectionMatrix" );
+    pointsArray =[];
+    normalsArray = [];
+    cube(va, vb, vc, vd, ve, vf, vg, vh, numTimesToSubdivide);
 
-    gl.uniform4fv(gl.getUniformLocation(program, "diffuseProduct"), flatten(diffuseProduct));
-    gl.uniform4fv(gl.getUniformLocation(program, "specularProduct"), flatten(specularProduct));
-    gl.uniform4fv(gl.getUniformLocation(program, "ambientProduct"), flatten(ambientProduct));
-    gl.uniform4fv(gl.getUniformLocation(program, "lightPosition"), flatten(lightPosition));
-    gl.uniform1f(gl.getUniformLocation(program, "shininess"), materialShininess);
+    for(let i=0; i<index; i+=3) {
+        gl.drawArrays(gl.TRIANGLES, i, 3);
+    }
 
-    gl.clear( gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    linePoints = chaikin(lineControlPoints, lineSubdivisions);
 
-    eye = vec3(0, 0, 1.5);
-
-    modelViewMatrix = lookAt(eye, at , up);
-    //let rTransormationMatrix = rotate(25, [10,0,1]);
-    //modelViewMatrix = mult(modelViewMatrix, rTransormationMatrix);
-    projectionMatrix = ortho(left, right, bottom, ytop, near, far);
-
-
-    gl.uniformMatrix4fv(modelViewMatrixLoc, false, flatten(modelViewMatrix) );
-    gl.uniformMatrix4fv(projectionMatrixLoc, false, flatten(projectionMatrix) );
-
-    // for( var i=0; i<index; i+=3)
-    //     gl.drawArrays( gl.TRIANGLES, i, 3 );
-
-    var linePoints = chaikin(lineControlPoints, lineSubdivisions);
-
-    var otherBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, vBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, flatten(linePoints), gl.STATIC_DRAW);
 
-    var otherPosition = gl.getAttribLocation( program, "vPosition");
     gl.vertexAttribPointer(vPosition, 4, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(vPosition);
 
     // Draw line (loop to close the end)
     gl.drawArrays(gl.LINE_LOOP, 0, linePoints.length);
 }
+
+
+
+
+
 
 // chaikin() recursively subdivides a line using Chaikin's corner cutting algorithm
 function chaikin(vertices, iterations) {
@@ -264,3 +322,4 @@ function chaikin(vertices, iterations) {
     // Recursively call to subdivide
     return chaikin(newVertices, iterations - 1);
 }
+
